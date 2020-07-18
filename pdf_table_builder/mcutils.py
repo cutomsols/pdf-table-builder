@@ -56,6 +56,7 @@ TABLE_ROW_TYPE_SPACER = 'spacer'
 
 
 def build_pdf(data):
+    ####
     pdf_buffer = BytesIO()
     pdf = BaseDocTemplate(pdf_buffer, pagesize=A4)
     frame = Frame(LEFT_MARGIN, BOTTOM_MARGIN, PAGE_WIDTH, 687, showBoundary=1)
