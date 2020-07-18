@@ -1,9 +1,0 @@
-README.md
-setup.py
-pdf_table_builder/__init__.py
-pdf_table_builder/mcutils.py
-pdf_table_builder.egg-info/PKG-INFO
-pdf_table_builder.egg-info/SOURCES.txt
-pdf_table_builder.egg-info/dependency_links.txt
-pdf_table_builder.egg-info/requires.txt
-pdf_table_builder.egg-info/top_level.txt
