@@ -11,7 +11,7 @@ setuptools.setup(
     description="A simple pdf table builder using the ReportLab Toolkit",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="",
+    url="https://github.com/cutomsols/pdf-table-builder",
     packages=setuptools.find_packages(),
     install_requires=[
         'reportlab',

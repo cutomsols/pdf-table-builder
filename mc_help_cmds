@@ -1,0 +1,5 @@
+# To build the package
+python setup.py sdist bdist_wheel
+
+# To upload it to pypi (first cd to parent directory of /dist/ directory)
+twine upload dist/*
