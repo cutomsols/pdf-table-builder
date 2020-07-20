@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="pdf-table-builder",  # Replace with your own username
-    version="0.0.2",
+    version="0.0.3",
     author="Timotheos Savva",
     author_email="timotheos.savva12@gmail.com",
     description="A simple pdf table builder using the ReportLab Toolkit",
@@ -15,6 +15,7 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     install_requires=[
         'reportlab',
+        'pillow'
     ],
     classifiers=[
         "Programming Language :: Python :: 3",

@@ -2,8 +2,6 @@ import os
 from io import BytesIO
 
 from PIL import Image as pilim
-from django.contrib.staticfiles import finders
-from doors.mc_utils.session.reqprms import *
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT, TA_JUSTIFY
 from reportlab.lib.pagesizes import A4
@@ -11,11 +9,12 @@ from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.platypus import BaseDocTemplate
+from reportlab.platypus import BaseDocTemplate, Image
 from reportlab.platypus import Frame, PageTemplate
 from reportlab.platypus import Paragraph, Table, TableStyle
 from reportlab.platypus import Spacer
-from tehni.settings import CONFIGURATOR_FOR_DEMO_VIEW
+
+from emergdept.pdf_table_builder.consts import *
 
 styles = getSampleStyleSheet()
 styleN = styles['Normal']
@@ -23,7 +22,6 @@ styleH = styles['Heading1']
 
 DESIRED_PHOTO_WIDTH = A4[0] - 100
 DESIRED_PHOTO_HEIGHT = A4[1] / 2 - 170
-
 
 BASIC_MARGIN = 30
 LEFT_MARGIN = BASIC_MARGIN
@@ -37,43 +35,66 @@ LINE_Y = 730
 TABLE_FINAL_COLS = ['date']
 BODY_STYLE = None
 USER_IS_CLIENT = None
-TABLE_ROW_DATA = 'row_data'
 
-# Builder Settings
-TABLE_COLUMN_CONTENT = 'column_content'
-
-TABLE_COLUMN_ALIGN = 'column_align'
-TABLE_COLUMN_ALIGN_LEFT = 'align_left'
-TABLE_COLUMN_ALIGN_CENTER = 'align_center'
-TABLE_COLUMN_ALIGN_RIGHT = 'align_right'
-TABLE_COLUMN_ALIGN_JUSTIFY = 'align_justify'
-
-TABLE_ROW_TYPE = 'row_type'
-TABLE_ROW_TYPE_TITLE = 'row_type_title'
-TABLE_ROW_TITLE = 'title'
-TABLE_ROW_TYPE_REGULAR = 'regular_row'
-TABLE_ROW_TYPE_SPACER = 'spacer'
+WATERMARK = None
+LOGO_PATH = None
+__location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 
 
-def build_pdf(data):
-    ####
+def build_pdf(data, logo_path=None, watermark=None, images_data=None):
+    global WATERMARK
+    global LOGO_PATH
+    global BODY_STYLE
+
+    LOGO_PATH = logo_path
+    WATERMARK = watermark
+    BODY_STYLE = get_body_style()
+
     pdf_buffer = BytesIO()
     pdf = BaseDocTemplate(pdf_buffer, pagesize=A4)
     frame = Frame(LEFT_MARGIN, BOTTOM_MARGIN, PAGE_WIDTH, 687, showBoundary=1)
     template = PageTemplate(id='all_pages', frames=frame, onPage=header_and_footer)
     pdf.addPageTemplates([template])
 
-    global BODY_STYLE
-    BODY_STYLE = get_body_style()
+    images_before_table = []
+    images_after_table = []
+    for img_path, img_pos in images_data.items():
+        if img_pos == IMAGE_DOC_POSITION_BEFORE_TABLE:
+            images_before_table.append(img_path)
+        elif img_pos == IMAGE_DOC_POSITION_AFTER_TABLE:
+            images_after_table.append(img_path)
 
-    story = [
-        pfd_table_builder(data)
-    ]
+    story = []
 
+    for img_path in images_before_table:
+        story.extend([
+            Spacer(10, 10),
+            Image(img_path, width=100, height=100),
+            Spacer(10, 10)
+        ])
+
+    story.append(pfd_table_builder(data))
+
+    for img_path in images_after_table:
+        story.extend([
+            Spacer(10, 10),
+            Image(img_path, width=100, height=100),
+            Spacer(10, 10)
+        ])
     pdf.build(story)
     pdf_value = pdf_buffer.getvalue()
     pdf_buffer.close()
     return pdf_value
+
+
+def get_img(img_path):
+    # buff1 = BytesIO()
+    # img = pilim.open(img_path)
+    # print('img_path:', img_path, img.size[0], img.size[1])
+    # door_out_img = Image(img_path, width=2 * inch, height=2 * inch)
+
+    return '''<para autoLeading="off" fontSize=12>This &lt;img/&gt; <img
+src="{0}" valign="top" width="{1}" height="{2}"/> </para>'''.format(img_path, 100, 100)
 
 
 def pfd_table_builder(data):
@@ -117,7 +138,7 @@ def pfd_table_builder(data):
         if row.get(TABLE_ROW_TYPE) == TABLE_ROW_TYPE_TITLE:
             TABLE_FINAL_COLS.append('title')
             table_data.append([
-                Paragraph(row.get(TABLE_ROW_TITLE), body_style)
+                Paragraph('{}'.format(row.get(TABLE_ROW_DATA)), body_style)
             ])
         if row.get(TABLE_ROW_TYPE) == TABLE_ROW_TYPE_SPACER:
             TABLE_FINAL_COLS.append('spacer')
@@ -137,7 +158,7 @@ def pfd_table_builder(data):
                             column_align == TABLE_COLUMN_ALIGN_RIGHT) else TA_JUSTIFY if (
                             column_align == TABLE_COLUMN_ALIGN_JUSTIFY) else TA_LEFT
                 column.append([
-                    Paragraph(col_dict.get(TABLE_COLUMN_CONTENT, 'N/A'), style)
+                    Paragraph('{}'.format(col_dict.get(TABLE_COLUMN_CONTENT, 'N/A')), style)
                 ])
             table_data.append(column)
 
@@ -167,28 +188,12 @@ def pfd_table_builder(data):
 
 
 def header_and_footer(canvas, pdf):
-    # ----------------------- HEADER ----------------------- #
-    company_info = get_pdf_company_info()
-    canvas.setTitle(company_info.get('tab_title'))
-
     # LOGO
-    if not CONFIGURATOR_FOR_DEMO_VIEW:
-        logo_path = finders.find(os.path.join('logos', company_info.get('logo_img_name')))
-        im = pilim.open(logo_path)
+    print('LOGO_PATH', LOGO_PATH)
+    if LOGO_PATH:
+        im = pilim.open(LOGO_PATH)
         pil_img = ImageReader(im)
         canvas.drawImage(pil_img, 350, PAGE_HEIGHT, width=210, height=70, mask='auto')
-
-    # COMPANY'S INFO
-    address_parts = company_info.get('address_parts')
-    canvas.setFont('Helvetica-Bold', 10)
-    top_y = PAGE_HEIGHT + 62
-    canvas.drawString(BASIC_MARGIN, top_y, company_info.get('tab_title'))
-    canvas.setFont('Helvetica', 9)
-    for i, part in enumerate(address_parts):
-        if i == 0:
-            canvas.drawString(BASIC_MARGIN, top_y - 20, part.strip())
-        else:
-            canvas.drawString(BASIC_MARGIN, top_y - 20 - i * 12, part.strip())
 
     canvas.line(BASIC_MARGIN, LINE_Y, PAGE_WIDTH + BASIC_MARGIN, LINE_Y)
 
@@ -198,7 +203,8 @@ def header_and_footer(canvas, pdf):
     page_number_text = "%d" % pdf.page
     canvas.drawCentredString(295, 8, '-' + page_number_text + '-')
     # watermark
-    canvas.drawCentredString(507, 8, 'Powered by design-vs.com')
+    if WATERMARK:
+        canvas.drawCentredString(507, 8, WATERMARK)
 
     canvas.line(BASIC_MARGIN, 20, PAGE_WIDTH + BASIC_MARGIN, 20)
 
@@ -207,7 +213,8 @@ def get_body_style():
     sample_style_sheet = getSampleStyleSheet()
     body_style = sample_style_sheet['BodyText']
     body_style.fontSize = BODY_FONT_SIZE
-    pdfmetrics.registerFont(TTFont('NotoSans', finders.find('fonts/NotoSans-Regular.ttf')))
-    pdfmetrics.registerFont(TTFont('NotoSansBold', finders.find('fonts/NotoSans-Bold.ttf')))
+    print('__location__', __location__)
+    pdfmetrics.registerFont(TTFont('NotoSans', os.path.join(__location__, 'fonts/NotoSans-Regular.ttf')))
+    pdfmetrics.registerFont(TTFont('NotoSansBold', os.path.join(__location__, 'fonts/NotoSans-Bold.ttf')))
     body_style.fontName = 'NotoSans'
     return body_style
