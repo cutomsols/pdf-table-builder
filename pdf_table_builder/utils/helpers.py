@@ -1,5 +1,4 @@
-from emergdept.pdf_table_builder.consts import TABLE_ROW_TYPE, TABLE_ROW_TYPE_REGULAR, TABLE_ROW_DATA, \
-    TABLE_COLUMN_CONTENT
+from pdf_table_builder.consts import TABLE_ROW_TYPE, TABLE_ROW_TYPE_REGULAR, TABLE_ROW_DATA, TABLE_COLUMN_CONTENT
 
 
 def parse_obj_to_pdf_builder_data(obj, exclude_fields=None):
